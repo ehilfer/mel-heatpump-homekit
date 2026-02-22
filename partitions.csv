@@ -1,0 +1,6 @@
+# ESP32 4MB flash: small factory updater + large ota_0 for main app
+# Name,     Type, SubType,  Offset,   Size
+nvs,        data, nvs,      0x9000,   0x5000,
+otadata,    data, ota,      0xe000,   0x2000,
+factory,    app,  factory,  0x10000,  0x60000,
+ota_0,      app,  ota_0,    0x70000,  0x390000,
