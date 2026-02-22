@@ -115,7 +115,11 @@ bool xLogger::ExecCommand(const String &cmd) {
 
   if (cmd == "mem") {
     char heap[22];
+  #ifdef ESP32
+    snprintf(heap, sizeof(heap), "Heap: %d.%03dB", ESP.getFreeHeap() / 1000, ESP.getFreeHeap() % 1000);
+  #else
     snprintf(heap, sizeof(heap), "Heap: %d.%03dB / %d%%", ESP.getFreeHeap() / 1000, ESP.getFreeHeap() % 1000, ESP.getHeapFragmentation());
+  #endif
     println(heap);
     return true;
   }
@@ -223,7 +227,11 @@ void xLogger::showInitMessage() {
   msg += SF("\r\nIP  : ") + WiFi.localIP().toString();
   msg += SF("\r\nMac : ") + WiFi.macAddress();
   char heap[22];
+#ifdef ESP32
+  snprintf(heap, sizeof(heap), "Heap: %d.%03dB", ESP.getFreeHeap() / 1000, ESP.getFreeHeap() % 1000);
+#else
   snprintf(heap, sizeof(heap), "Heap: %d.%03dB / %d%%", ESP.getFreeHeap() / 1000, ESP.getFreeHeap() % 1000, ESP.getHeapFragmentation());
+#endif
   msg += SF("\r\n") + heap;
 
   char str[20];

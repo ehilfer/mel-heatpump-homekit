@@ -38,14 +38,20 @@ void debug_init(const char ssid[]) {
         asprintf(&stackFreeTopic, "debug/%s/stack_free", ssid);
         asprintf(&homeKitClients, "debug/%s/homekit_clients", ssid);
 
+#ifdef ESP32
+        statsTicker.attach(STATS_INTERVAL, [] {
+#else
         statsTicker.attach_scheduled(STATS_INTERVAL, [] {
+#endif
             char str[6];
             snprintf(str, sizeof(str), "%u", ESP.getFreeHeap());
             mqtt.publish(heapFreeTopic, str);
+#ifndef ESP32
             snprintf(str, sizeof(str), "%u", ESP.getMaxFreeBlockSize());
             mqtt.publish(heapMaxTopic, str);
             snprintf(str, sizeof(str), "%u", ESP.getFreeContStack());
             mqtt.publish(stackFreeTopic, str);
+#endif
             // N * 1000 to scale it similar to memory values
             snprintf(str, sizeof(str), "%d", homekit_clients_count() * 1000);
             mqtt.publish(homeKitClients, str);

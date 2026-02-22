@@ -1,7 +1,11 @@
 #include "homekit.h"
 
 #include <Arduino.h>
+#ifdef ESP32
+#include <ESPmDNS.h>
+#else
 #include <ESP8266mDNS.h>
+#endif
 #include <Ticker.h>
 #include <arduino_homekit_server.h>
 #include <homekit/characteristics.h>
@@ -13,7 +17,7 @@
 #include "homekit.h"
 #include "led_status_patterns.h"
 
-static char serial[7];
+static char serial[9];
 static Ticker updateTicker;
 static Ticker keepAliveTicker;
 
@@ -77,7 +81,11 @@ static heatpumpSettings _settingsForCurrentState() {
 }
 
 static void scheduleHeatPumpUpdate() {
+#ifdef ESP32
+    updateTicker.once_ms(UPDATE_INTERVAL, [] {
+#else
     updateTicker.once_ms_scheduled(UPDATE_INTERVAL, [] {
+#endif
         unsigned long start = millis();
 
         heatpumpSettings settings = _settingsForCurrentState();
@@ -212,12 +220,29 @@ static void set_fan_swing(homekit_value_t value) {
 void homekit_init(const char *ssid, std::function<void()> loop) {
     MIE_LOG("Starting HomeKit server...");
 
+#ifdef ESP32
+    sprintf(serial, "%06x", ESP.getEfuseMac());
+#else
     sprintf(serial, "%06x", ESP.getChipId());
+#endif
     accessory_serial.value = HOMEKIT_STRING_CPP(serial);
     accessory_name.value = HOMEKIT_STRING_CPP((char*)ssid);
 
+    MIE_LOG("calling homekit setup");
     arduino_homekit_setup(&accessory_config);
+    MIE_LOG("getting running server");
     homekit_server_t *homekit = arduino_homekit_get_running_server();
+    for (int i = 0; i < 200 && homekit == nullptr; i++) {  // ~2s max
+        delay(10);  // yields
+        homekit = arduino_homekit_get_running_server();
+      }
+      MIE_LOG("homekit ptr=%p", homekit);
+    if( homekit == NULL) {
+        MIE_LOG("null server");
+    } 
+    else {
+        MIE_LOG("good server");
+    }
     if (!homekit->paired) {
         MIE_LOG("Waiting for accessory pairing");
 
@@ -247,9 +272,11 @@ void homekit_init(const char *ssid, std::function<void()> loop) {
 
     // Keep HomeKit connection alive
     // https://github.com/Mixiaoxiao/Arduino-HomeKit-ESP8266/issues/9
+#ifndef ESP32
     keepAliveTicker.attach_ms_scheduled(ANNOUNCE_INTERVAL, []() {
-        MDNS.announce();
+    MDNS.announce();
     });
+#endif
 }
 
 void homekit_loop() {

@@ -11,7 +11,11 @@
 #define __XLOGGER_H__
 
 #include <Arduino.h>
+#ifdef ESP32
+#include <WiFi.h>     // https://github.com/esp8266/Arduino
+#else
 #include <ESP8266WiFi.h>     // https://github.com/esp8266/Arduino
+#endif
 #include <TimeLib.h>         // https://github.com/PaulStoffregen/Time 
 
 #define XLOGGER_VERSION      "1.0"

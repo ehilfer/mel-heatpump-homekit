@@ -47,11 +47,13 @@ bool accessory_set_float(homekit_characteristic_t *characteristic, float value, 
 #define LED_ON LOW
 #define LED_OFF HIGH
 void set_led_on(homekit_value_t value) {
+#ifndef XIAO_ESP32C3
     if (value.bool_value) {
         digitalWrite(LED_BUILTIN, LED_ON);
     } else {
         digitalWrite(LED_BUILTIN, LED_OFF);
     }
+#endif
 }
 
 homekit_characteristic_t ch_led_on = HOMEKIT_CHARACTERISTIC_(ON, false,

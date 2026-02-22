@@ -1,4 +1,4 @@
-#include <sys/pgmspace.h>
+#include <pgmspace.h>
 
 // generated file, edit web/index.html
 const char* index_html PROGMEM = R"====(

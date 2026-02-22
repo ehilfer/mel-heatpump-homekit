@@ -1,11 +1,20 @@
 #include "web.h"
 
 #include <ArduinoJson.h>
+#ifdef ESP32
+#include <Arduino.h>
+#include <WebServer.h>
+#include <HTTPUpdateServer.h>
+#include <ESPmDNS.h>
+#else
 #include <ESP8266HTTPUpdateServer.h>
 #include <ESP8266WebServer.h>
 #include <ESP8266mDNS.h>
+#endif
 #include <LittleFS.h>
+#ifndef ESP32
 #include <Time.h>
+#endif
 
 #include "debug.h"
 #include "env_sensor.h"
@@ -20,19 +29,32 @@
 
 #define JSON_CAPACITY 512
 
+#ifdef ESP32
+static WebServer httpServer(80);
+static HTTPUpdateServer updateServer;
+#else
 static ESP8266WebServer httpServer(80);
 static ESP8266HTTPUpdateServer updateServer;
+#endif
 
+#ifndef ESP32
 using namespace mime;
+#endif
 
 extern const char* index_html;
 
 template <size_t SIZE>
 static void status_heap(char (&str)[SIZE]) {
+#ifdef ESP32
+    // TODO find new calls for block and fragementation information
+    snprintf(str, sizeof(str), "%d.%03dB",
+            ESP.getFreeHeap() / 1000, ESP.getFreeHeap() % 1000);
+#else
     snprintf(str, sizeof(str), "%d.%03dB / %d%% / %d.%03dB",
             ESP.getFreeHeap() / 1000, ESP.getFreeHeap() % 1000,
             ESP.getHeapFragmentation(),
             ESP.getMaxFreeBlockSize() / 1000, ESP.getMaxFreeBlockSize() % 1000);
+#endif
 }
 
 static void status_uptime(char (&str)[20]) {
@@ -84,7 +106,8 @@ static void web_get_settings() {
     char bytes[content_size + 1];
     config.readBytes(bytes, content_size);
     bytes[content_size] = '\0';
-    httpServer.send(200, mimeTable[json].mimeType, bytes);
+    httpServer.send(200, "application/json", bytes);
+    //httpServer.send(200, mimeTable[json].mimeType, bytes);
 }
 
 static void web_post_settings() {
@@ -113,7 +136,7 @@ static void web_post_settings() {
     serializeJsonPretty(doc, response, sizeof(response));
     config.close();
 
-    httpServer.send(200, mimeTable[json].mimeType, response);
+    httpServer.send(200, "application/json", response);
     delay(1000);
     ESP.restart();
 }
@@ -131,7 +154,11 @@ static void web_get_status() {
     snprintf(firmware_str, sizeof(firmware_str), "%s (%s)", GIT_DESCRIBE, GIT_HASH);
 
     StaticJsonDocument<JSON_CAPACITY> doc;
+#ifdef ESP32
+    doc["title"] = WiFi.getHostname();
+#else
     doc["title"] = WiFi.hostname();
+#endif
     doc["heatpump"] = heatpump.isConnected() ? "connected" : "not connected";
     doc["homekit"] = homekit_str;
     doc["env"] = strlen(env_sensor_status) ? env_sensor_status : "not connected";
@@ -143,19 +170,19 @@ static void web_get_status() {
     size_t doc_size = measureJsonPretty(doc);
     char response[doc_size + 1];
     serializeJsonPretty(doc, response, sizeof(response));
-    httpServer.send(200, mimeTable[json].mimeType, response);
+    httpServer.send(200, "application/json", response);
 }
 
 static void web_post_reboot() {
     MIE_LOG("Reboot from web UI");
-    httpServer.send(200, mimeTable[html].mimeType, "Rebooting...");
+    httpServer.send(200, "text/html", "Rebooting...");
     delay(1000);
     ESP.restart();
 }
 
 static void web_post_reset_wifi() {
     MIE_LOG("Reset WiFi settings");
-    httpServer.send(200, mimeTable[html].mimeType, "Reset WiFi settings. Rebooting...");
+    httpServer.send(200, "text/html", "Reset WiFi settings. Rebooting...");
     delay(1000);
     wifiManager.resetSettings();
     ESP.restart();
@@ -163,7 +190,7 @@ static void web_post_reset_wifi() {
 
 static void web_post_unpair() {
     MIE_LOG("Reset HomeKit pairing");
-    httpServer.send(200, mimeTable[html].mimeType, "Reset HomeKit pairing. Rebooting...");
+    httpServer.send(200, "text/html", "Reset HomeKit pairing. Rebooting...");
     delay(1000);
     homekit_storage_reset();
     ESP.restart();
@@ -173,7 +200,7 @@ void web_init(const char* hostname) {
     updateServer.setup(&httpServer, "/_update");
 
     httpServer.on("/", HTTP_GET, []() {
-        httpServer.send(200, mimeTable[html].mimeType, index_html);
+        httpServer.send(200, "text/html", index_html);
     });
 
     httpServer.on("/_settings", HTTP_GET, web_get_settings);

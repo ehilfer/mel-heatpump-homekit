@@ -1,4 +1,5 @@
 #include "settings.h"
+#include "debug.h"
 
 #include <ArduinoJson.h>
 #include <LittleFS.h>
@@ -7,12 +8,22 @@ Settings settings;
 #define JSON_CAPACITY 512
 
 void settings_init() {
+    MIE_LOG("Beginning LittleFS...");
+#ifdef ESP32
+    LittleFS.begin( true);
+#else
     LittleFS.begin();
+#endif
+    MIE_LOG("LittleFS after begin...");
     File f = LittleFS.open(CONFIG_FILE, "r");
     if (!f) {
         MIE_LOG("Creating empty config file");
         f = LittleFS.open(CONFIG_FILE, "w");
+#ifdef ESP32
+        f.write( (uint8_t *) "{}", 2);
+#else
         f.write("{}");
+#endif
         f.close();
         f = LittleFS.open(CONFIG_FILE, "r");
     }

@@ -216,7 +216,11 @@ bool heatpump_init() {
     heatpump.enableExternalUpdate();
     heatpump.disableAutoUpdate();
 
+#ifdef ESP32
+    syncTicker.attach(SYNC_INTERVAL, [] {
+#else
     syncTicker.attach_scheduled(SYNC_INTERVAL, [] {
+#endif
         unsigned long start = millis();
         if (heatpump.isConnected()) {
             heatpump.sync();
@@ -228,8 +232,18 @@ bool heatpump_init() {
     });
 
     delay(100);
+#ifdef ESP32
+#ifdef XIAO_ESP32C3
+    if (heatpump.connect(&Serial1,  2400, 10, 20)) { //  int bitrate, int rx, int tx) 
+#else
+    if (heatpump.connect(&Serial2,  2400, 16, 17)) { //  int bitrate, int rx, int tx) 
+#endif
+#else
     if (heatpump.connect(&Serial)) {
+#endif
         MIE_LOG("Heat pump connected");
+        heatpump.setRemoteTemperature( 0);
+
         return true;
     } else {
         Serial.begin(115200);

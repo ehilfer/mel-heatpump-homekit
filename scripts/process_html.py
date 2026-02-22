@@ -5,7 +5,7 @@ Import("env")
 src_file = os.path.join(env["PROJECT_DIR"], "web/index.html")
 dest_file = os.path.join(env["PROJECT_DIR"], "src/html.cpp")
 
-template = """#include <sys/pgmspace.h>
+template = """#include <pgmspace.h>
 
 // generated file, edit web/index.html
 const char* index_html PROGMEM = R"====(
